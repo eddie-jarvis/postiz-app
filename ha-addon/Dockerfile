@@ -26,7 +26,6 @@ RUN apk add --no-cache \
 # ---- Copy Postiz application from official image ----
 # The official image is Node-based, app lives in /app
 COPY --from=postiz-source /app /opt/postiz
-COPY --from=postiz-source /uploads /opt/postiz/uploads-default
 
 # ---- Create persistent data directories ----
 RUN mkdir -p \
