@@ -1,0 +1,7 @@
+#!/usr/bin/with-contenv bashio
+# ==============================================================================
+# Redis service
+# ==============================================================================
+bashio::log.info "Starting Redis..."
+
+exec su-exec redis redis-server /etc/redis.conf
