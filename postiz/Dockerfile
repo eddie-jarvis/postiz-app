@@ -8,7 +8,7 @@
 FROM ghcr.io/gitroomhq/postiz-app:latest AS postiz-source
 
 # Stage 2: Build the add-on
-FROM ghcr.io/hassio-addons/base:17.2.3
+FROM ghcr.io/hassio-addons/base:19.0.0
 
 # ---- Install PostgreSQL 17 ----
 RUN apk add --no-cache \
