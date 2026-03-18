@@ -24,7 +24,7 @@ panel_title: "Postiz"
 
 schema:
   JWT_SECRET: "str"
-  MAIN_URL: "url?"
+  MAIN_URL: "str?"
   DISABLE_REGISTRATION: "bool?"
   IS_GENERAL: "bool?"
   # Social Media API Keys
@@ -52,7 +52,7 @@ schema:
   SLACK_ID: "str?"
   SLACK_SECRET: "str?"
   SLACK_SIGNING_SECRET: "str?"
-  MASTODON_URL: "url?"
+  MASTODON_URL: "str?"
   MASTODON_CLIENT_ID: "str?"
   MASTODON_CLIENT_SECRET: "str?"
   DRIBBBLE_CLIENT_ID: "str?"
