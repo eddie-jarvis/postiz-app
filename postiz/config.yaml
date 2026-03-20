@@ -1,4 +1,3 @@
----
 name: "Postiz - Social Media Manager"
 description: "Self-hosted social media scheduling and analytics tool"
 version: "1.0.0"
@@ -7,61 +6,58 @@ url: "https://github.com/eddie-jarvis/postiz-app"
 arch:
   - amd64
   - aarch64
-startup: "application"
-boot: "auto"
 init: false
+startup: application
+boot: auto
 ports:
-  4007/tcp: 4007
+  "4007/tcp": 4007
 ports_description:
-  4007/tcp: "Postiz Web UI"
+  "4007/tcp": "Postiz Web UI"
 map:
-  - config:rw
-  - share:rw
+  - type: config
+    read_only: false
+  - type: share
+    read_only: false
 ingress: true
 ingress_port: 4007
 panel_icon: "mdi:post"
 panel_title: "Postiz"
-
 schema:
-  JWT_SECRET: "str"
-  MAIN_URL: "str?"
-  DISABLE_REGISTRATION: "bool?"
-  IS_GENERAL: "bool?"
-  # Social Media API Keys
-  X_API_KEY: "str?"
-  X_API_SECRET: "str?"
-  LINKEDIN_CLIENT_ID: "str?"
-  LINKEDIN_CLIENT_SECRET: "str?"
-  REDDIT_CLIENT_ID: "str?"
-  REDDIT_CLIENT_SECRET: "str?"
-  GITHUB_CLIENT_ID: "str?"
-  GITHUB_CLIENT_SECRET: "str?"
-  THREADS_APP_ID: "str?"
-  THREADS_APP_SECRET: "str?"
-  FACEBOOK_APP_ID: "str?"
-  FACEBOOK_APP_SECRET: "str?"
-  YOUTUBE_CLIENT_ID: "str?"
-  YOUTUBE_CLIENT_SECRET: "str?"
-  TIKTOK_CLIENT_ID: "str?"
-  TIKTOK_CLIENT_SECRET: "str?"
-  PINTEREST_CLIENT_ID: "str?"
-  PINTEREST_CLIENT_SECRET: "str?"
-  DISCORD_CLIENT_ID: "str?"
-  DISCORD_CLIENT_SECRET: "str?"
-  DISCORD_BOT_TOKEN_ID: "str?"
-  SLACK_ID: "str?"
-  SLACK_SECRET: "str?"
-  SLACK_SIGNING_SECRET: "str?"
-  MASTODON_URL: "str?"
-  MASTODON_CLIENT_ID: "str?"
-  MASTODON_CLIENT_SECRET: "str?"
-  DRIBBBLE_CLIENT_ID: "str?"
-  DRIBBBLE_CLIENT_SECRET: "str?"
-  # AI
-  OPENAI_API_KEY: "str?"
-  # Postgres
-  POSTGRES_PASSWORD: "str?"
-
+  JWT_SECRET: str
+  MAIN_URL: str?
+  DISABLE_REGISTRATION: bool?
+  IS_GENERAL: bool?
+  X_API_KEY: str?
+  X_API_SECRET: str?
+  LINKEDIN_CLIENT_ID: str?
+  LINKEDIN_CLIENT_SECRET: str?
+  REDDIT_CLIENT_ID: str?
+  REDDIT_CLIENT_SECRET: str?
+  GITHUB_CLIENT_ID: str?
+  GITHUB_CLIENT_SECRET: str?
+  THREADS_APP_ID: str?
+  THREADS_APP_SECRET: str?
+  FACEBOOK_APP_ID: str?
+  FACEBOOK_APP_SECRET: str?
+  YOUTUBE_CLIENT_ID: str?
+  YOUTUBE_CLIENT_SECRET: str?
+  TIKTOK_CLIENT_ID: str?
+  TIKTOK_CLIENT_SECRET: str?
+  PINTEREST_CLIENT_ID: str?
+  PINTEREST_CLIENT_SECRET: str?
+  DISCORD_CLIENT_ID: str?
+  DISCORD_CLIENT_SECRET: str?
+  DISCORD_BOT_TOKEN_ID: str?
+  SLACK_ID: str?
+  SLACK_SECRET: str?
+  SLACK_SIGNING_SECRET: str?
+  MASTODON_URL: str?
+  MASTODON_CLIENT_ID: str?
+  MASTODON_CLIENT_SECRET: str?
+  DRIBBBLE_CLIENT_ID: str?
+  DRIBBBLE_CLIENT_SECRET: str?
+  OPENAI_API_KEY: str?
+  POSTGRES_PASSWORD: str?
 options:
   JWT_SECRET: "CHANGE_ME_TO_A_RANDOM_STRING"
   MAIN_URL: ""
