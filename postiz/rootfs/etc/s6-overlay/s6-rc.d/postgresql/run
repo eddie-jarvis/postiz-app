@@ -1,9 +1,2 @@
-#!/usr/bin/with-contenv bashio
-# ==============================================================================
-# PostgreSQL service
-# ==============================================================================
-bashio::log.info "Starting PostgreSQL..."
-
-chown -R postgres:postgres /data/postgres /run/postgresql
-
-exec su -s /bin/bash postgres -c "/usr/lib/postgresql/17/bin/postgres -D /data/postgres"
+#!/command/with-contenv bashio
+exec s6-setuidgid postgres /usr/lib/postgresql/17/bin/postgres -D /data/postgres

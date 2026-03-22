@@ -1,147 +1,109 @@
-#!/usr/bin/with-contenv bashio
-# ==============================================================================
-# Postiz Add-on: Initialization
-# Reads HA options, sets up environment, initializes PostgreSQL if needed
-# ==============================================================================
+#!/command/with-contenv bashio
 
 bashio::log.info "Initializing Postiz add-on..."
 
-# ---- Read configuration from HA options ----
+# Read config
 JWT_SECRET=$(bashio::config 'JWT_SECRET')
 MAIN_URL=$(bashio::config 'MAIN_URL')
-DISABLE_REGISTRATION=$(bashio::config 'DISABLE_REGISTRATION')
 IS_GENERAL=$(bashio::config 'IS_GENERAL')
-POSTGRES_PASSWORD=$(bashio::config 'POSTGRES_PASSWORD')
+DISABLE_REGISTRATION=$(bashio::config 'DISABLE_REGISTRATION')
 
-# Determine the external URL
-if bashio::config.has_value 'MAIN_URL' && [ -n "${MAIN_URL}" ]; then
-    POSTIZ_URL="${MAIN_URL}"
-else
-    # Default — user must set MAIN_URL for OAuth callbacks to work
-    POSTIZ_URL="http://localhost:5000"
+MAIN_URL="${MAIN_URL%/}"
+if [ -z "${MAIN_URL}" ]; then
+    MAIN_URL="http://localhost:5000"
 fi
 
-bashio::log.info "Postiz URL: ${POSTIZ_URL}"
+POSTGRES_PASSWORD="postiz-password"
+DATABASE_URL="postgresql://postiz:${POSTGRES_PASSWORD}@localhost:5432/postiz-db"
 
-# ---- Write environment file for all s6 services ----
-{
-    echo "MAIN_URL=${POSTIZ_URL}"
-    echo "FRONTEND_URL=${POSTIZ_URL}"
-    echo "NEXT_PUBLIC_BACKEND_URL=${POSTIZ_URL}/api"
-    echo "BACKEND_INTERNAL_URL=http://localhost:3000"
-    echo "JWT_SECRET=${JWT_SECRET}"
-    echo "DATABASE_URL=postgresql://postiz:${POSTGRES_PASSWORD}@localhost:5432/postiz-db"
-    echo "REDIS_URL=redis://localhost:6379"
-    echo "IS_GENERAL=${IS_GENERAL}"
-    echo "DISABLE_REGISTRATION=${DISABLE_REGISTRATION}"
-    echo "STORAGE_PROVIDER=local"
-    echo "UPLOAD_DIRECTORY=/uploads"
-    echo "NEXT_PUBLIC_UPLOAD_DIRECTORY=/uploads"
-    echo "NX_ADD_PLUGINS=false"
-    echo "API_LIMIT=30"
-    echo "NODE_ENV=production"
-} > /etc/postiz-env
+bashio::log.info "Postiz URL: ${MAIN_URL}"
 
-# Social media API keys — only set if non-empty
-declare -a SOCIAL_KEYS=(
-    X_API_KEY X_API_SECRET
-    LINKEDIN_CLIENT_ID LINKEDIN_CLIENT_SECRET
-    REDDIT_CLIENT_ID REDDIT_CLIENT_SECRET
-    GITHUB_CLIENT_ID GITHUB_CLIENT_SECRET
-    THREADS_APP_ID THREADS_APP_SECRET
-    FACEBOOK_APP_ID FACEBOOK_APP_SECRET
-    YOUTUBE_CLIENT_ID YOUTUBE_CLIENT_SECRET
-    TIKTOK_CLIENT_ID TIKTOK_CLIENT_SECRET
-    PINTEREST_CLIENT_ID PINTEREST_CLIENT_SECRET
-    DISCORD_CLIENT_ID DISCORD_CLIENT_SECRET DISCORD_BOT_TOKEN_ID
-    SLACK_ID SLACK_SECRET SLACK_SIGNING_SECRET
-    MASTODON_URL MASTODON_CLIENT_ID MASTODON_CLIENT_SECRET
-    DRIBBBLE_CLIENT_ID DRIBBBLE_CLIENT_SECRET
-    OPENAI_API_KEY
-)
+# Write env file
+cat > /etc/postiz-env <<EOF
+DATABASE_URL=${DATABASE_URL}
+REDIS_URL=redis://localhost:6379
+JWT_SECRET=${JWT_SECRET}
+MAIN_URL=${MAIN_URL}
+FRONTEND_URL=${MAIN_URL}
+NEXT_PUBLIC_BACKEND_URL=${MAIN_URL}/api
+BACKEND_INTERNAL_URL=http://localhost:3000
+IS_GENERAL=${IS_GENERAL}
+DISABLE_REGISTRATION=${DISABLE_REGISTRATION}
+STORAGE_PROVIDER=local
+UPLOAD_DIRECTORY=/uploads
+NEXT_PUBLIC_UPLOAD_DIRECTORY=/uploads
+NODE_ENV=production
+EOF
 
-for key in "${SOCIAL_KEYS[@]}"; do
-    if bashio::config.has_value "${key}"; then
-        val=$(bashio::config "${key}")
-        if [ -n "${val}" ]; then
-            echo "${key}=${val}" >> /etc/postiz-env
-        fi
-    fi
-done
-
-# ---- Ensure data directories exist (HA mounts /data at runtime) ----
+# Create dirs
 mkdir -p /data/postgres /data/redis /run/postgresql /uploads
 chown -R postgres:postgres /data/postgres /run/postgresql
 chmod 700 /data/postgres
 
-# ---- Initialize PostgreSQL if first run ----
-PG_BIN=/usr/lib/postgresql/17/bin
-
+# Init PostgreSQL if needed
 if [ ! -f /data/postgres/PG_VERSION ]; then
-    bashio::log.info "Initializing PostgreSQL database..."
-
-    su -s /bin/bash postgres -c "${PG_BIN}/initdb -D /data/postgres --auth-local=trust --auth-host=md5"
-
-    # Configure PostgreSQL
-    {
-        echo "listen_addresses = '127.0.0.1'"
-        echo "port = 5432"
-        echo "unix_socket_directories = '/run/postgresql'"
-        echo "max_connections = 50"
-        echo "shared_buffers = 128MB"
-        echo "work_mem = 4MB"
-        echo "maintenance_work_mem = 64MB"
-        echo "effective_cache_size = 256MB"
-        echo "logging_collector = off"
-        echo "log_destination = 'stderr'"
-    } >> /data/postgres/postgresql.conf
-
-    # Allow local connections
-    {
-        echo "local   all   all                 trust"
-        echo "host    all   all   127.0.0.1/32  trust"
-    } > /data/postgres/pg_hba.conf
-
-    # Ensure socket dir exists with correct perms before starting
-    mkdir -p /run/postgresql
-    chown postgres:postgres /run/postgresql
+    bashio::log.info "First run — initializing PostgreSQL..."
     
-    # Start PostgreSQL temporarily to create the database/user
-    bashio::log.info "Starting PostgreSQL for initial setup..."
-    # Start PG - log to stderr so HA captures it
-    su -s /bin/bash postgres -c "${PG_BIN}/pg_ctl -D /data/postgres -l /data/pg_start.log start -w -t 30" 2>&1
-    if [ $? -ne 0 ]; then
-        bashio::log.error "PostgreSQL failed to start. Log output:"
-        cat /data/pg_start.log 2>/dev/null || bashio::log.error "No log file found"
-        bashio::log.error "Permissions:"
-        ls -la /data/postgres/ | head -5
-        ls -la /run/postgresql/
+    # Use pg_createcluster-like approach but manual since we use /data
+    chown postgres:postgres /data/postgres
+    
+    # initdb as postgres user
+    /usr/lib/postgresql/17/bin/initdb \
+        -D /data/postgres \
+        --auth=trust \
+        --encoding=UTF8 \
+        --locale=C \
+        --username=postgres 2>&1 || {
+        bashio::log.error "initdb failed"
         exit 1
-    fi
-
-    su -s /bin/bash postgres -c "${PG_BIN}/psql -c \"CREATE USER postiz WITH PASSWORD '${POSTGRES_PASSWORD}';\""
-    su -s /bin/bash postgres -c "${PG_BIN}/psql -c \"CREATE DATABASE \\\"postiz-db\\\" OWNER postiz;\""
-    su -s /bin/bash postgres -c "${PG_BIN}/psql -c \"GRANT ALL PRIVILEGES ON DATABASE \\\"postiz-db\\\" TO postiz;\""
-
-    su -s /bin/bash postgres -c "${PG_BIN}/pg_ctl -D /data/postgres stop -w -t 30"
+    }
+    
+    chown -R postgres:postgres /data/postgres
+    
+    # Configure
+    {
+        echo "listen_addresses = 'localhost'"
+        echo "port = 5432"
+        echo "max_connections = 100"
+        echo "shared_buffers = 128MB"
+        echo "unix_socket_directories = '/run/postgresql'"
+    } >> /data/postgres/postgresql.conf
+    
+    {
+        echo "local   all   all   trust"
+        echo "host    all   all   127.0.0.1/32  trust"
+        echo "host    all   all   ::1/128       trust"
+    } > /data/postgres/pg_hba.conf
+    
+    # Start postgres in background
+    /usr/lib/postgresql/17/bin/pg_ctl \
+        -D /data/postgres \
+        -l /data/pg_init.log \
+        -o "-c unix_socket_directories=/run/postgresql" \
+        start 2>&1
+    
+    # Wait for it
+    for i in $(seq 1 30); do
+        if /usr/lib/postgresql/17/bin/pg_isready -h /run/postgresql > /dev/null 2>&1; then
+            break
+        fi
+        sleep 1
+    done
+    
+    # Create user and database
+    /usr/lib/postgresql/17/bin/psql -h /run/postgresql -U postgres \
+        -c "CREATE USER postiz WITH PASSWORD '${POSTGRES_PASSWORD}' SUPERUSER;" 2>&1
+    /usr/lib/postgresql/17/bin/psql -h /run/postgresql -U postgres \
+        -c "CREATE DATABASE \"postiz-db\" OWNER postiz;" 2>&1
+    
+    # Stop
+    /usr/lib/postgresql/17/bin/pg_ctl -D /data/postgres stop -w 2>&1
+    sleep 2
+    
     bashio::log.info "PostgreSQL initialized successfully."
 else
-    bashio::log.info "PostgreSQL data directory already exists, skipping init."
+    bashio::log.info "PostgreSQL data exists, skipping init."
     chown -R postgres:postgres /data/postgres /run/postgresql
 fi
 
-# ---- Configure Redis ----
-cat > /etc/redis/redis.conf <<EOF
-bind 127.0.0.1
-port 6379
-dir /data/redis
-appendonly yes
-appendfilename "appendonly.aof"
-maxmemory 128mb
-maxmemory-policy allkeys-lru
-daemonize no
-loglevel notice
-logfile ""
-EOF
-
-bashio::log.info "Initialization complete."
+bashio::log.info "Postiz initialization complete."
