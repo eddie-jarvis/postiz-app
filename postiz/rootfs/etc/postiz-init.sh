@@ -99,11 +99,21 @@ if [ ! -f /data/postgres/PG_VERSION ]; then
     # Allow local connections
     {
         echo "local   all   all                 trust"
-        echo "host    all   all   127.0.0.1/32  md5"
+        echo "host    all   all   127.0.0.1/32  trust"
     } > /data/postgres/pg_hba.conf
 
+    # Ensure socket dir exists with correct perms before starting
+    mkdir -p /run/postgresql
+    chown postgres:postgres /run/postgresql
+    
     # Start PostgreSQL temporarily to create the database/user
-    su -s /bin/bash postgres -c "${PG_BIN}/pg_ctl -D /data/postgres -l /dev/null start -w -t 30"
+    bashio::log.info "Starting PostgreSQL for initial setup..."
+    su -s /bin/bash postgres -c "${PG_BIN}/pg_ctl -D /data/postgres -l /tmp/pg_start.log start -w -t 30"
+    if [ $? -ne 0 ]; then
+        bashio::log.error "PostgreSQL failed to start. Log:"
+        cat /tmp/pg_start.log 2>/dev/null
+        exit 1
+    fi
 
     su -s /bin/bash postgres -c "${PG_BIN}/psql -c \"CREATE USER postiz WITH PASSWORD '${POSTGRES_PASSWORD}';\""
     su -s /bin/bash postgres -c "${PG_BIN}/psql -c \"CREATE DATABASE \\\"postiz-db\\\" OWNER postiz;\""
