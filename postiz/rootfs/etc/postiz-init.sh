@@ -34,7 +34,7 @@ chmod 700 /data/postgres
 # Only run initdb - do NOT start postgres here
 if [ ! -f /data/postgres/PG_VERSION ]; then
     bashio::log.info "First run — initializing PostgreSQL data..."
-    /usr/lib/postgresql/17/bin/initdb -D /data/postgres --auth=trust --encoding=UTF8 --locale=C --username=postgres 2>&1
+    s6-setuidgid postgres /usr/lib/postgresql/17/bin/initdb -D /data/postgres --auth=trust --encoding=UTF8 --locale=C --username=postgres 2>&1
     chown -R postgres:postgres /data/postgres
     
     echo "listen_addresses = 'localhost'" >> /data/postgres/postgresql.conf
