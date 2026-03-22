@@ -106,5 +106,10 @@ LABEL \
 
 EXPOSE 5000
 
-# Install Temporal CLI (includes dev server)
-RUN curl -sSf https://temporal.download/cli.sh | sh -s -- --dir /usr/local/bin
+
+# Install Temporal CLI
+RUN ARCH=$(dpkg --print-architecture) && \
+    curl -sL -o /tmp/temporal.tar.gz "https://temporal.download/cli/archive/latest?platform=linux&arch=${ARCH}" && \
+    tar -xzf /tmp/temporal.tar.gz -C /usr/local/bin && \
+    rm /tmp/temporal.tar.gz && \
+    chmod +x /usr/local/bin/temporal
