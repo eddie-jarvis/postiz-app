@@ -12,8 +12,8 @@ MAIN_URL="${MAIN_URL%/}"
 bashio::log.info "Postiz URL: ${MAIN_URL}"
 
 cat > /etc/postiz-env <<EOF
-DATABASE_URL=postgresql://postiz:postiz-password@localhost:5432/postiz-db
-REDIS_URL=redis://localhost:6379
+DATABASE_URL=postgresql://postiz:postiz-password@localhost:5433/postiz-db
+REDIS_URL=redis://localhost:6380
 JWT_SECRET=${JWT_SECRET}
 MAIN_URL=${MAIN_URL}
 FRONTEND_URL=${MAIN_URL}
@@ -38,7 +38,7 @@ if [ ! -f /data/postgres/PG_VERSION ]; then
     chown -R postgres:postgres /data/postgres
     
     echo "listen_addresses = 'localhost'" >> /data/postgres/postgresql.conf
-    echo "port = 5432" >> /data/postgres/postgresql.conf
+    echo "port = 5433" >> /data/postgres/postgresql.conf
     echo "unix_socket_directories = '/run/postgresql'" >> /data/postgres/postgresql.conf
     
     printf "local all all trust\nhost all all 127.0.0.1/32 trust\nhost all all ::1/128 trust\n" > /data/postgres/pg_hba.conf

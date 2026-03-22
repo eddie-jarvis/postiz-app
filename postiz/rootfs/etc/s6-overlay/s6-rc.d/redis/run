@@ -1,7 +1,2 @@
-#!/usr/bin/with-contenv bashio
-# ==============================================================================
-# Redis service
-# ==============================================================================
-bashio::log.info "Starting Redis..."
-
-exec redis-server /etc/redis/redis.conf
+#!/command/with-contenv bashio
+exec redis-server --port 6380 --dir /data/redis --appendonly yes --protected-mode no --bind 127.0.0.1

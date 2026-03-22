@@ -7,7 +7,7 @@ set +a
 # Wait for PostgreSQL
 bashio::log.info "Waiting for PostgreSQL..."
 for i in $(seq 1 60); do
-    if /usr/lib/postgresql/17/bin/pg_isready -h /run/postgresql > /dev/null 2>&1; then
+    if /usr/lib/postgresql/17/bin/pg_isready -h /run/postgresql -p 5433 > /dev/null 2>&1; then
         bashio::log.info "PostgreSQL is ready."
         break
     fi
@@ -18,8 +18,8 @@ done
 # Create user/db if first run
 if [ -f /data/.needs_db_setup ]; then
     bashio::log.info "Creating database and user..."
-    /usr/lib/postgresql/17/bin/psql -h /run/postgresql -U postgres -c "CREATE USER postiz WITH PASSWORD 'postiz-password' SUPERUSER;" 2>&1 || true
-    /usr/lib/postgresql/17/bin/psql -h /run/postgresql -U postgres -c "CREATE DATABASE \"postiz-db\" OWNER postiz;" 2>&1 || true
+    /usr/lib/postgresql/17/bin/psql -h /run/postgresql -p 5433 -U postgres -c "CREATE USER postiz WITH PASSWORD 'postiz-password' SUPERUSER;" 2>&1 || true
+    /usr/lib/postgresql/17/bin/psql -h /run/postgresql -p 5433 -U postgres -c "CREATE DATABASE \"postiz-db\" OWNER postiz;" 2>&1 || true
     rm -f /data/.needs_db_setup
     bashio::log.info "Database created."
 fi
@@ -27,7 +27,7 @@ fi
 # Wait for Redis
 bashio::log.info "Waiting for Redis..."
 for i in $(seq 1 30); do
-    if redis-cli ping > /dev/null 2>&1; then
+    if redis-cli -p 6380 ping > /dev/null 2>&1; then
         bashio::log.info "Redis is ready."
         break
     fi
