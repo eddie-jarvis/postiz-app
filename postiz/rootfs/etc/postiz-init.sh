@@ -25,6 +25,8 @@ STORAGE_PROVIDER=local
 UPLOAD_DIRECTORY=/uploads
 NEXT_PUBLIC_UPLOAD_DIRECTORY=/uploads
 NODE_ENV=production
+TEMPORAL_ADDRESS=
+DISABLE_TEMPORAL=true
 EOF
 
 mkdir -p /data/postgres /data/redis /run/postgresql /uploads
