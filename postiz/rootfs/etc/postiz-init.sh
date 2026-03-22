@@ -1,7 +1,7 @@
 #!/usr/bin/with-contenv bashio
 # ==============================================================================
 # Postiz Add-on: Initialization
-# Reads options.json, sets up environment, initializes PostgreSQL if needed
+# Reads HA options, sets up environment, initializes PostgreSQL if needed
 # ==============================================================================
 
 bashio::log.info "Initializing Postiz add-on..."
@@ -13,13 +13,12 @@ DISABLE_REGISTRATION=$(bashio::config 'DISABLE_REGISTRATION')
 IS_GENERAL=$(bashio::config 'IS_GENERAL')
 POSTGRES_PASSWORD=$(bashio::config 'POSTGRES_PASSWORD')
 
-# Determine the URL for Postiz
+# Determine the external URL
 if bashio::config.has_value 'MAIN_URL' && [ -n "${MAIN_URL}" ]; then
     POSTIZ_URL="${MAIN_URL}"
-elif bashio::addon.ingress; then
-    POSTIZ_URL="$(bashio::addon.ingress_url)"
 else
-    POSTIZ_URL="http://localhost:4007"
+    # Default — user must set MAIN_URL for OAuth callbacks to work
+    POSTIZ_URL="http://localhost:5000"
 fi
 
 bashio::log.info "Postiz URL: ${POSTIZ_URL}"
@@ -31,17 +30,17 @@ bashio::log.info "Postiz URL: ${POSTIZ_URL}"
     echo "NEXT_PUBLIC_BACKEND_URL=${POSTIZ_URL}/api"
     echo "BACKEND_INTERNAL_URL=http://localhost:3000"
     echo "JWT_SECRET=${JWT_SECRET}"
-    echo "DATABASE_URL=postgresql://postiz:${POSTGRES_PASSWORD}@localhost:5432/postiz"
+    echo "DATABASE_URL=postgresql://postiz:${POSTGRES_PASSWORD}@localhost:5432/postiz-db"
     echo "REDIS_URL=redis://localhost:6379"
     echo "IS_GENERAL=${IS_GENERAL}"
     echo "DISABLE_REGISTRATION=${DISABLE_REGISTRATION}"
     echo "STORAGE_PROVIDER=local"
-    echo "UPLOAD_DIRECTORY=/data/uploads"
-    echo "NEXT_PUBLIC_UPLOAD_DIRECTORY=/data/uploads"
+    echo "UPLOAD_DIRECTORY=/uploads"
+    echo "NEXT_PUBLIC_UPLOAD_DIRECTORY=/uploads"
     echo "NX_ADD_PLUGINS=false"
     echo "API_LIMIT=30"
     echo "NODE_ENV=production"
-} > /etc/postiz.env
+} > /etc/postiz-env
 
 # Social media API keys — only set if non-empty
 declare -a SOCIAL_KEYS=(
@@ -65,22 +64,23 @@ for key in "${SOCIAL_KEYS[@]}"; do
     if bashio::config.has_value "${key}"; then
         val=$(bashio::config "${key}")
         if [ -n "${val}" ]; then
-            echo "${key}=${val}" >> /etc/postiz.env
+            echo "${key}=${val}" >> /etc/postiz-env
         fi
     fi
 done
 
-# ---- Ensure data directories exist ----
-mkdir -p /data/postgres /data/redis /data/uploads /data/config
-chown -R postgres:postgres /data/postgres
-chown -R redis:redis /data/redis
+# ---- Ensure data directories exist (HA mounts /data at runtime) ----
+mkdir -p /data/postgres /data/redis /run/postgresql /uploads
+chown -R postgres:postgres /data/postgres /run/postgresql
 chmod 700 /data/postgres
 
 # ---- Initialize PostgreSQL if first run ----
+PG_BIN=/usr/lib/postgresql/17/bin
+
 if [ ! -f /data/postgres/PG_VERSION ]; then
     bashio::log.info "Initializing PostgreSQL database..."
-    chown -R postgres:postgres /run/postgresql
-    su-exec postgres initdb -D /data/postgres --auth-local=trust --auth-host=md5
+
+    su -s /bin/bash postgres -c "${PG_BIN}/initdb -D /data/postgres --auth-local=trust --auth-host=md5"
 
     # Configure PostgreSQL
     {
@@ -103,13 +103,13 @@ if [ ! -f /data/postgres/PG_VERSION ]; then
     } > /data/postgres/pg_hba.conf
 
     # Start PostgreSQL temporarily to create the database/user
-    su-exec postgres pg_ctl -D /data/postgres -l /dev/null start -w -t 30
+    su -s /bin/bash postgres -c "${PG_BIN}/pg_ctl -D /data/postgres -l /dev/null start -w -t 30"
 
-    su-exec postgres psql -c "CREATE USER postiz WITH PASSWORD '${POSTGRES_PASSWORD}';"
-    su-exec postgres psql -c "CREATE DATABASE postiz OWNER postiz;"
-    su-exec postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE postiz TO postiz;"
+    su -s /bin/bash postgres -c "${PG_BIN}/psql -c \"CREATE USER postiz WITH PASSWORD '${POSTGRES_PASSWORD}';\""
+    su -s /bin/bash postgres -c "${PG_BIN}/psql -c \"CREATE DATABASE \\\"postiz-db\\\" OWNER postiz;\""
+    su -s /bin/bash postgres -c "${PG_BIN}/psql -c \"GRANT ALL PRIVILEGES ON DATABASE \\\"postiz-db\\\" TO postiz;\""
 
-    su-exec postgres pg_ctl -D /data/postgres stop -w -t 30
+    su -s /bin/bash postgres -c "${PG_BIN}/pg_ctl -D /data/postgres stop -w -t 30"
     bashio::log.info "PostgreSQL initialized successfully."
 else
     bashio::log.info "PostgreSQL data directory already exists, skipping init."
@@ -117,7 +117,7 @@ else
 fi
 
 # ---- Configure Redis ----
-cat > /etc/redis.conf <<EOF
+cat > /etc/redis/redis.conf <<EOF
 bind 127.0.0.1
 port 6379
 dir /data/redis
@@ -129,6 +129,5 @@ daemonize no
 loglevel notice
 logfile ""
 EOF
-chown redis:redis /etc/redis.conf
 
 bashio::log.info "Initialization complete."

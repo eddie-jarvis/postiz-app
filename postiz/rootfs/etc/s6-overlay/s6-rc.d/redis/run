@@ -4,4 +4,4 @@
 # ==============================================================================
 bashio::log.info "Starting Redis..."
 
-exec su-exec redis redis-server /etc/redis.conf
+exec redis-server /etc/redis/redis.conf

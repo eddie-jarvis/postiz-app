@@ -1,9 +1,0 @@
-#!/usr/bin/with-contenv bashio
-# ==============================================================================
-# PostgreSQL service
-# ==============================================================================
-bashio::log.info "Starting PostgreSQL..."
-
-chown -R postgres:postgres /data/postgres /run/postgresql
-
-exec su-exec postgres postgres -D /data/postgres

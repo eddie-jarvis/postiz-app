@@ -1,6 +1,6 @@
 name: "Postiz - Social Media Manager"
 description: "Self-hosted social media scheduling and analytics tool"
-version: "1.0.0"
+version: "1.0.1"
 slug: "postiz"
 url: "https://github.com/eddie-jarvis/postiz-app"
 arch:
@@ -9,17 +9,17 @@ arch:
 init: false
 startup: application
 boot: auto
+host_network: true
 ports:
-  "4007/tcp": 4007
+  "5000/tcp": 5000
 ports_description:
-  "4007/tcp": "Postiz Web UI"
+  "5000/tcp": "Postiz Web UI (nginx)"
 map:
   - type: config
     read_only: false
   - type: share
     read_only: false
-ingress: true
-ingress_port: 4007
+ingress: false
 panel_icon: "mdi:post"
 panel_title: "Postiz"
 schema:

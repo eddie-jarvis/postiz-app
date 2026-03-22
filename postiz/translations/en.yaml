@@ -1,10 +1,10 @@
 configuration:
   JWT_SECRET:
     name: JWT Secret
-    description: Random secret for authentication. Change to a unique random value.
+    description: Random secret for authentication tokens. Change this to a unique random value.
   MAIN_URL:
     name: Main URL
-    description: External URL for Postiz (e.g., http://192.168.1.50:4007). Leave empty to auto-detect.
+    description: "External URL for Postiz (e.g., http://192.168.1.50:5000). Required for social media OAuth callbacks."
   DISABLE_REGISTRATION:
     name: Disable Registration
     description: Prevent new user signups after initial setup.
@@ -23,6 +23,81 @@ configuration:
   LINKEDIN_CLIENT_SECRET:
     name: LinkedIn Client Secret
     description: OAuth client secret from LinkedIn Developer Portal
+  REDDIT_CLIENT_ID:
+    name: Reddit Client ID
+    description: OAuth client ID from Reddit
+  REDDIT_CLIENT_SECRET:
+    name: Reddit Client Secret
+    description: OAuth client secret from Reddit
+  GITHUB_CLIENT_ID:
+    name: GitHub Client ID
+    description: OAuth client ID from GitHub
+  GITHUB_CLIENT_SECRET:
+    name: GitHub Client Secret
+    description: OAuth client secret from GitHub
+  THREADS_APP_ID:
+    name: Threads App ID
+    description: App ID from Meta for Threads
+  THREADS_APP_SECRET:
+    name: Threads App Secret
+    description: App secret from Meta for Threads
+  FACEBOOK_APP_ID:
+    name: Facebook App ID
+    description: App ID from Meta Developer Portal
+  FACEBOOK_APP_SECRET:
+    name: Facebook App Secret
+    description: App secret from Meta Developer Portal
+  YOUTUBE_CLIENT_ID:
+    name: YouTube Client ID
+    description: OAuth client ID from Google Cloud Console
+  YOUTUBE_CLIENT_SECRET:
+    name: YouTube Client Secret
+    description: OAuth client secret from Google Cloud Console
+  TIKTOK_CLIENT_ID:
+    name: TikTok Client ID
+    description: Client key from TikTok Developer Portal
+  TIKTOK_CLIENT_SECRET:
+    name: TikTok Client Secret
+    description: Client secret from TikTok Developer Portal
+  PINTEREST_CLIENT_ID:
+    name: Pinterest Client ID
+    description: App ID from Pinterest Developer Portal
+  PINTEREST_CLIENT_SECRET:
+    name: Pinterest Client Secret
+    description: App secret from Pinterest Developer Portal
+  DISCORD_CLIENT_ID:
+    name: Discord Client ID
+    description: OAuth client ID from Discord Developer Portal
+  DISCORD_CLIENT_SECRET:
+    name: Discord Client Secret
+    description: OAuth client secret from Discord Developer Portal
+  DISCORD_BOT_TOKEN_ID:
+    name: Discord Bot Token
+    description: Bot token from Discord Developer Portal
+  SLACK_ID:
+    name: Slack Client ID
+    description: OAuth client ID from Slack API
+  SLACK_SECRET:
+    name: Slack Client Secret
+    description: OAuth client secret from Slack API
+  SLACK_SIGNING_SECRET:
+    name: Slack Signing Secret
+    description: Signing secret from Slack API
+  MASTODON_URL:
+    name: Mastodon Instance URL
+    description: "URL of your Mastodon instance (e.g., https://mastodon.social)"
+  MASTODON_CLIENT_ID:
+    name: Mastodon Client ID
+    description: OAuth client ID from your Mastodon instance
+  MASTODON_CLIENT_SECRET:
+    name: Mastodon Client Secret
+    description: OAuth client secret from your Mastodon instance
+  DRIBBBLE_CLIENT_ID:
+    name: Dribbble Client ID
+    description: OAuth client ID from Dribbble
+  DRIBBBLE_CLIENT_SECRET:
+    name: Dribbble Client Secret
+    description: OAuth client secret from Dribbble
   OPENAI_API_KEY:
     name: OpenAI API Key
     description: Optional - enables AI content suggestions

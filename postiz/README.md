@@ -31,10 +31,13 @@ Self-hosted social media scheduling and analytics, packaged as a Home Assistant 
 
 1. After installing, go to the add-on **Configuration** tab
 2. **Change `JWT_SECRET`** to a random string (important for security!)
-3. Add API keys for any social media platforms you want to use
-4. Click **Save**
-5. Go to the **Info** tab and click **Start**
-6. Access Postiz via the sidebar or `http://<your-ha-ip>:4007`
+3. Set `MAIN_URL` to `http://<your-ha-ip>:5000` (required for OAuth callbacks)
+4. Add API keys for any social media platforms you want to use
+5. Click **Save**
+6. Go to the **Info** tab and click **Start**
+7. Access Postiz at `http://<your-ha-ip>:5000`
+
+> **Note:** Ingress is disabled — Postiz is a SPA that doesn't work through HA's ingress proxy. Access it directly via port 5000.
 
 ## What's Included
 
@@ -43,11 +46,11 @@ Self-hosted social media scheduling and analytics, packaged as a Home Assistant 
 | Postiz      | latest  | Social media management    |
 | PostgreSQL  | 17      | Database                   |
 | Redis       | 7       | Cache & queues             |
+| nginx       | -       | Reverse proxy (port 5000)  |
 
 ## What's NOT Included (v1.0)
 
 - **Temporal** — Workflow engine for advanced scheduling. Skipped in v1.0 to keep resource usage low. Basic scheduling works without it.
-- **Elasticsearch** — Required by Temporal. Will be added if/when Temporal support is added.
 
 ## Resource Requirements
 
@@ -58,24 +61,24 @@ Self-hosted social media scheduling and analytics, packaged as a Home Assistant 
 ## File Structure
 
 ```
-ha-addon/
+postiz/
 ├── config.yaml          # HA add-on configuration & schema
 ├── Dockerfile           # Multi-stage build (Postiz + PG + Redis)
 ├── build.yaml           # Build configuration
-├── repository.yaml      # Custom repository metadata
-├── run.sh               # Entry point script
 ├── DOCS.md              # User documentation
 ├── README.md            # This file
+├── CHANGELOG.md         # Version history
+├── translations/
+│   └── en.yaml          # English translations
 └── rootfs/
     └── etc/
-        ├── cont-init.d/
-        │   └── postiz-init.sh      # Initialization (DB setup, env vars)
+        ├── postiz-init.sh           # Initialization (DB setup, env vars)
         └── s6-overlay/
             └── s6-rc.d/
                 ├── init-postiz/     # Oneshot: initialization
                 ├── postgresql/      # Longrun: PostgreSQL 17
                 ├── redis/           # Longrun: Redis 7
-                └── postiz/          # Longrun: Postiz app
+                └── postiz/          # Longrun: nginx + pm2 (backend, frontend, orchestrator)
 ```
 
 ## Updating
@@ -90,7 +93,7 @@ When a new version of the add-on is released:
 
 The add-on data is included in Home Assistant's backup system. You can also manually back up:
 - `/data/postgres/` — Database (most important)
-- `/data/uploads/` — Uploaded media files
+- `/uploads/` — Uploaded media files
 
 ## License
 

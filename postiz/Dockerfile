@@ -3,62 +3,94 @@ FROM ghcr.io/gitroomhq/postiz-app:latest AS postiz-source
 
 FROM ${BUILD_FROM}
 
-RUN apk add --no-cache \
-    postgresql17 \
-    postgresql17-client \
-    postgresql17-contrib \
-    redis \
-    nodejs \
-    npm \
-    curl \
-    bash \
-    jq \
-    su-exec
+# ---------------------------------------------------------------------------
+# Install PostgreSQL 17 from official PGDG repo (signed-by keyring)
+# ---------------------------------------------------------------------------
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        curl ca-certificates gnupg lsb-release \
+    && install -d /usr/share/postgresql-common/pgdg \
+    && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+        -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+    && echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] \
+        https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+        > /etc/apt/sources.list.d/pgdg.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends \
+        postgresql-17 \
+        postgresql-client-17 \
+    && rm -rf /var/lib/apt/lists/*
 
-COPY --from=postiz-source /app /opt/postiz
+# ---------------------------------------------------------------------------
+# Install Redis
+# ---------------------------------------------------------------------------
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends redis-server \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN mkdir -p \
-    /data/postgres \
-    /data/redis \
-    /data/uploads \
-    /data/config \
-    /run/postgresql \
-    /run/redis
+# ---------------------------------------------------------------------------
+# Install Node.js 22 from nodesource
+# ---------------------------------------------------------------------------
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
+    && rm -rf /var/lib/apt/lists/*
 
-# s6 services
-RUN mkdir -p /etc/s6-overlay/s6-rc.d/postgresql/dependencies.d
-COPY rootfs/etc/s6-overlay/s6-rc.d/postgresql/type /etc/s6-overlay/s6-rc.d/postgresql/type
-COPY rootfs/etc/s6-overlay/s6-rc.d/postgresql/run /etc/s6-overlay/s6-rc.d/postgresql/run
-COPY rootfs/etc/s6-overlay/s6-rc.d/postgresql/finish /etc/s6-overlay/s6-rc.d/postgresql/finish
-RUN touch /etc/s6-overlay/s6-rc.d/user/contents.d/postgresql
+# ---------------------------------------------------------------------------
+# Install nginx
+# ---------------------------------------------------------------------------
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends nginx \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN mkdir -p /etc/s6-overlay/s6-rc.d/redis/dependencies.d
-COPY rootfs/etc/s6-overlay/s6-rc.d/redis/type /etc/s6-overlay/s6-rc.d/redis/type
-COPY rootfs/etc/s6-overlay/s6-rc.d/redis/run /etc/s6-overlay/s6-rc.d/redis/run
-COPY rootfs/etc/s6-overlay/s6-rc.d/redis/finish /etc/s6-overlay/s6-rc.d/redis/finish
-RUN touch /etc/s6-overlay/s6-rc.d/user/contents.d/redis
+# ---------------------------------------------------------------------------
+# Install pnpm and pm2 globally
+# ---------------------------------------------------------------------------
+RUN npm install -g pnpm pm2
 
-RUN mkdir -p /etc/s6-overlay/s6-rc.d/postiz/dependencies.d
-COPY rootfs/etc/s6-overlay/s6-rc.d/postiz/type /etc/s6-overlay/s6-rc.d/postiz/type
-COPY rootfs/etc/s6-overlay/s6-rc.d/postiz/run /etc/s6-overlay/s6-rc.d/postiz/run
-COPY rootfs/etc/s6-overlay/s6-rc.d/postiz/finish /etc/s6-overlay/s6-rc.d/postiz/finish
-RUN touch /etc/s6-overlay/s6-rc.d/postiz/dependencies.d/postgresql \
+# ---------------------------------------------------------------------------
+# Copy Postiz application from source image
+# ---------------------------------------------------------------------------
+COPY --from=postiz-source /app /app
+COPY --from=postiz-source /etc/nginx/nginx.conf /etc/nginx/nginx.conf
+
+# ---------------------------------------------------------------------------
+# Copy rootfs (s6 services + init script)
+# ---------------------------------------------------------------------------
+COPY rootfs /
+
+# ---------------------------------------------------------------------------
+# Make all scripts executable
+# ---------------------------------------------------------------------------
+RUN chmod +x /etc/postiz-init.sh \
+    && find /etc/s6-overlay/s6-rc.d -name "run" -exec chmod +x {} \; \
+    && find /etc/s6-overlay/s6-rc.d -name "finish" -exec chmod +x {} \;
+
+# ---------------------------------------------------------------------------
+# s6 service registration
+# ---------------------------------------------------------------------------
+# init-postiz (oneshot)
+RUN mkdir -p /etc/s6-overlay/s6-rc.d/init-postiz/dependencies.d \
+    && touch /etc/s6-overlay/s6-rc.d/user/contents.d/init-postiz
+
+# postgresql (longrun) — depends on init-postiz
+RUN mkdir -p /etc/s6-overlay/s6-rc.d/postgresql/dependencies.d \
+    && touch /etc/s6-overlay/s6-rc.d/postgresql/dependencies.d/init-postiz \
+    && touch /etc/s6-overlay/s6-rc.d/user/contents.d/postgresql
+
+# redis (longrun) — depends on init-postiz
+RUN mkdir -p /etc/s6-overlay/s6-rc.d/redis/dependencies.d \
+    && touch /etc/s6-overlay/s6-rc.d/redis/dependencies.d/init-postiz \
+    && touch /etc/s6-overlay/s6-rc.d/user/contents.d/redis
+
+# postiz (longrun) — depends on postgresql + redis
+RUN mkdir -p /etc/s6-overlay/s6-rc.d/postiz/dependencies.d \
+    && touch /etc/s6-overlay/s6-rc.d/postiz/dependencies.d/postgresql \
     && touch /etc/s6-overlay/s6-rc.d/postiz/dependencies.d/redis \
     && touch /etc/s6-overlay/s6-rc.d/user/contents.d/postiz
 
-RUN mkdir -p /etc/s6-overlay/s6-rc.d/init-postiz/dependencies.d
-COPY rootfs/etc/s6-overlay/s6-rc.d/init-postiz/type /etc/s6-overlay/s6-rc.d/init-postiz/type
-COPY rootfs/etc/s6-overlay/s6-rc.d/init-postiz/up /etc/s6-overlay/s6-rc.d/init-postiz/up
-COPY rootfs/etc/cont-init.d/postiz-init.sh /etc/cont-init.d/postiz-init.sh
-RUN touch /etc/s6-overlay/s6-rc.d/user/contents.d/init-postiz \
-    && touch /etc/s6-overlay/s6-rc.d/postgresql/dependencies.d/init-postiz \
-    && touch /etc/s6-overlay/s6-rc.d/redis/dependencies.d/init-postiz
-
-RUN find /etc/s6-overlay/s6-rc.d -name "run" -exec chmod +x {} \; 2>/dev/null; \
-    find /etc/s6-overlay/s6-rc.d -name "finish" -exec chmod +x {} \; 2>/dev/null; \
-    chmod +x /etc/cont-init.d/postiz-init.sh 2>/dev/null; \
-    true
-
+# ---------------------------------------------------------------------------
+# Labels
+# ---------------------------------------------------------------------------
 ARG BUILD_ARCH
 ARG BUILD_VERSION
 
@@ -69,4 +101,4 @@ LABEL \
     io.hass.type="addon" \
     io.hass.version=${BUILD_VERSION}
 
-EXPOSE 4007
+EXPOSE 5000

@@ -2,7 +2,7 @@
 
 ## About
 
-Postiz is an open-source social media scheduling and analytics tool. This Home Assistant add-on packages Postiz with all its dependencies (PostgreSQL, Redis) into a single container for easy deployment.
+Postiz is an open-source social media scheduling and analytics tool. This Home Assistant add-on packages Postiz with all its dependencies (PostgreSQL, Redis, nginx) into a single container for easy deployment.
 
 ## Features
 
@@ -34,12 +34,12 @@ Postiz is an open-source social media scheduling and analytics tool. This Home A
 | Option | Description |
 |--------|-------------|
 | `JWT_SECRET` | **Change this!** Random string for JWT token signing. Use a long random string. |
+| `MAIN_URL` | External URL for Postiz (e.g., `http://192.168.1.50:5000`). Required for social media OAuth callbacks. |
 
 ### Optional Settings
 
 | Option | Description |
 |--------|-------------|
-| `MAIN_URL` | External URL for Postiz. Leave empty to use HA ingress URL. |
 | `DISABLE_REGISTRATION` | Set to `true` to prevent new user signups after initial setup. |
 | `IS_GENERAL` | Enable general mode (default: `true`). |
 | `POSTGRES_PASSWORD` | PostgreSQL password (default: `postiz-password`). |
@@ -65,37 +65,48 @@ All data is persisted in `/data/` which maps to the add-on's persistent storage:
 
 - `/data/postgres/` — PostgreSQL database files
 - `/data/redis/` — Redis append-only file
-- `/data/uploads/` — Uploaded media files
-- `/data/config/` — Configuration files
+
+Uploaded media is stored at `/uploads/` inside the container.
 
 ## Network
 
 | Port | Description |
 |------|-------------|
-| 4007 | Postiz Web UI (also used for ingress) |
+| 5000 | Postiz Web UI (nginx reverse proxy) |
+
+The add-on uses `host_network: true` for direct port access. Ingress is disabled because Postiz is a SPA that doesn't work through HA's ingress proxy.
 
 ## Architecture
 
-This add-on runs three processes managed by s6-overlay:
+This add-on runs the following processes managed by s6-overlay:
 
-1. **PostgreSQL 17** — Main database
-2. **Redis 7** — Caching and queue management
-3. **Postiz** — The application itself (Node.js)
+1. **PostgreSQL 17** — Main database (from official PGDG repo)
+2. **Redis** — Caching and queue management
+3. **nginx** — Reverse proxy on port 5000 (proxies frontend on 4200 and backend on 3000)
+4. **pm2** — Process manager for Postiz backend, frontend, and orchestrator
 
-> **Note:** Temporal workflow engine is not included in v1.0 to reduce resource usage. Basic scheduling works without it. Temporal support may be added in a future version.
+The Dockerfile uses a multi-stage build:
+- Stage 1: Official Postiz image (`ghcr.io/gitroomhq/postiz-app:latest`) as source
+- Stage 2: HA Debian base (`ghcr.io/hassio-addons/debian-base:9.1.0`) with PostgreSQL, Redis, Node.js 22, nginx, pnpm, pm2
+
+> **Note:** Temporal workflow engine is not included in v1.0 to reduce resource usage. Basic scheduling works without it.
 
 ## Troubleshooting
 
 ### Add-on won't start
 Check the add-on logs in Home Assistant. Common issues:
 - JWT_SECRET not changed from default
-- Port 4007 already in use
+- Port 5000 already in use by another service
 - Insufficient disk space for PostgreSQL
 
 ### Can't connect to Postiz
-- Ensure port 4007 is not blocked by your firewall
-- If using ingress, access via the Home Assistant sidebar
+- Access Postiz directly at `http://<your-ha-ip>:5000`
+- Ensure port 5000 is not blocked by your firewall
 - Check that PostgreSQL and Redis are healthy in the logs
+
+### OAuth callbacks not working
+- Make sure `MAIN_URL` is set to the externally reachable URL (e.g., `http://192.168.1.50:5000`)
+- The URL must match what you configured in each social media developer portal
 
 ### Database issues
 PostgreSQL data is stored in `/data/postgres/`. If you need to reset:
