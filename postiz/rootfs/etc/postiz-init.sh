@@ -108,10 +108,14 @@ if [ ! -f /data/postgres/PG_VERSION ]; then
     
     # Start PostgreSQL temporarily to create the database/user
     bashio::log.info "Starting PostgreSQL for initial setup..."
-    su -s /bin/bash postgres -c "${PG_BIN}/pg_ctl -D /data/postgres -l /tmp/pg_start.log start -w -t 30"
+    # Start PG - log to stderr so HA captures it
+    su -s /bin/bash postgres -c "${PG_BIN}/pg_ctl -D /data/postgres -l /data/pg_start.log start -w -t 30" 2>&1
     if [ $? -ne 0 ]; then
-        bashio::log.error "PostgreSQL failed to start. Log:"
-        cat /tmp/pg_start.log 2>/dev/null
+        bashio::log.error "PostgreSQL failed to start. Log output:"
+        cat /data/pg_start.log 2>/dev/null || bashio::log.error "No log file found"
+        bashio::log.error "Permissions:"
+        ls -la /data/postgres/ | head -5
+        ls -la /run/postgresql/
         exit 1
     fi
 

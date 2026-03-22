@@ -1,6 +1,6 @@
 name: "Postiz - Social Media Manager"
 description: "Self-hosted social media scheduling and analytics tool"
-version: "1.0.2"
+version: "1.0.3"
 slug: "postiz"
 url: "https://github.com/eddie-jarvis/postiz-app"
 arch:
