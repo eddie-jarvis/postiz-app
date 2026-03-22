@@ -56,6 +56,9 @@ COPY --from=postiz-source /etc/nginx/nginx.conf /etc/nginx/nginx.conf
 # ---------------------------------------------------------------------------
 # Copy rootfs (s6 services + init script)
 # ---------------------------------------------------------------------------
+# Create www user for nginx
+RUN addgroup --system www 2>/dev/null; adduser --system --ingroup www --home /www --shell /usr/sbin/nologin www 2>/dev/null; mkdir -p /www; true
+
 COPY rootfs /
 
 # ---------------------------------------------------------------------------
