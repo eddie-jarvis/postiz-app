@@ -1,0 +1,3 @@
+#!/command/with-contenv bashio
+bashio::log.info "Starting Temporal dev server..."
+exec temporal server start-dev --port 7233 --db-filename /data/temporal.db --log-format pretty 2>&1

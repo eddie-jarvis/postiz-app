@@ -105,3 +105,6 @@ LABEL \
     io.hass.version=${BUILD_VERSION}
 
 EXPOSE 5000
+
+# Install Temporal CLI (includes dev server)
+RUN curl -sSf https://temporal.download/cli.sh | sh -s -- --dir /usr/local/bin
